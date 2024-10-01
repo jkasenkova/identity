@@ -1,0 +1,117 @@
+# ASP.NET Core
+# Build and test ASP.NET Core projects targeting .NET Core.
+# Add steps that run tests, create a NuGet package, deploy, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/languages/dotnet-core
+
+trigger:
+- master
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+- group: Relayworks
+
+stages:
+- stage: Build
+  displayName: Build and push stage
+  jobs:
+  - job: Build
+    displayName: Build
+    pool:
+      vmImage: $(vmImageName)
+    steps:
+      - task: UseDotNet@2
+        displayName: 'Install .NET Core SDK'
+        inputs:
+          version: 8.x
+          performMultiLevelLookup: true
+
+      - bash: >
+          dotnet tool install --global dotnet-ef --version 8.*
+        displayName: Install EF tool
+
+      - task: DotNetCoreCLI@2
+        displayName: 'Restore packages'
+        inputs:
+          command: 'restore'
+          projects: 'relay.identityserver.sln'
+          feedsToUse: 'select'
+          noCache: true
+
+      - task: NuGetCommand@2
+        displayName: 'Nuget restore'
+        inputs:
+          command: 'restore'
+          feedsToUse: 'select'
+          restoreSolution: 'relay.identityserver.sln'
+          arguments: -force
+          noCache: true
+      
+      - task: DotNetCoreCLI@2
+        displayName: 'Build solution'
+        inputs:
+          command: 'build'
+          configuration: $(configuration)
+          buildProperties: '--no-restore'
+          projects: 'relay.identityserver.sln'
+
+      - bash: dotnet ef migrations bundle  --context ApplicationDbContext --project Relay.IdentityServer --force
+        displayName: Create migration bundle
+
+      - task: PowerShell@2
+        displayName: Run migration
+        inputs:
+          targetType: 'inline'
+          script: './ApplicationDb/efbundle --connection "$(postgres)"'
+          showWarnings: true
+
+      - bash: dotnet ef migrations bundle  --context ConfigurationDbContext --project Relay.IdentityServer --force
+        displayName: Create migration bundle
+
+      - task: PowerShell@2
+        displayName: Run migration
+        inputs:
+          targetType: 'inline'
+          script: './ConfigurationDb/efbundle --connection "$(postgres)"'
+          showWarnings: true
+
+      - bash: dotnet ef migrations bundle  --context PersistedGrantDbContext --project Relay.IdentityServer --force
+        displayName: Create migration bundle
+
+      - task: PowerShell@2
+        displayName: Run migration
+        inputs:
+          targetType: 'inline'
+          script: './PersistedGrantDb/efbundle --connection "$(postgres)"'
+          showWarnings: true
+
+      - task: DotNetCoreCLI@2
+        displayName: 'Publish solution'
+        inputs:
+          command: 'publish'
+          publishWebProjects: true
+          arguments: '--configuration $(buildConfiguration)'
+          workingDirectory: '$(Build.ArtifactStagingDirectory)'
+
+      - task: ArchiveFiles@2
+        displayName: 'Make zip artifact'
+        inputs:
+          rootFolderOrFile: '$(Build.BinariesDirectory)'
+          includeRootFolder: true
+          archiveType: 'zip'
+          archiveFile: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip'
+          replaceExistingArchive: true
+
+      - task: AzureWebApp@1
+        displayName: 'Deploy to web app'
+        inputs:
+          azureSubscription: $(subscriptionName)
+          appType: 'webAppLinux'
+          appName: 'rw-is-dev'
+          deployToSlotOrASE: true
+          resourceGroupName: 'relayworks'
+          slotName: 'production'
+          package: '$(System.DefaultWorkingDirectory)/**/*.zip'
+          runtimeStack: 'DOTNETCORE|8.0'
+          deploymentMethod: zipDeploy

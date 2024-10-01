@@ -1,0 +1,10 @@
+﻿global using Duende.IdentityServer.EntityFramework.DbContexts;
+global using Duende.IdentityServer.EntityFramework.Mappers;
+global using Duende.IdentityServer.Models;
+global using IdentityModel;
+global using Microsoft.AspNetCore.Identity;
+global using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+global using Microsoft.EntityFrameworkCore;
+global using Microsoft.Extensions.Options;
+global using System.Reflection;
+global using System.Security.Claims;

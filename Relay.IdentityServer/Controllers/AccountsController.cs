@@ -23,14 +23,15 @@ public class AccountsController(
     [HttpPost("sing-up")]
     public async Task<IActionResult> SingUpAsync([FromBody] SignUpRequest request, CancellationToken cancellationToken = default)
     {
-        var company = await CreateCompany(request.CompanyName, cancellationToken);
+        var company = await CreateCompany(request, cancellationToken);
 
         var user = new User
         {
             Email = request.Email,
             UserName = request.Email,
             EmailConfirmed = true,
-            AccountId = company.Id
+            AccountId = company.Id,
+            IsPrimary = true
         };
 
         await _dbContext.Users.AddAsync(user, cancellationToken);
@@ -66,7 +67,8 @@ public class AccountsController(
             Email = request.Email,
             UserName = request.Email,
             EmailConfirmed = true,
-            AccountId = accountId
+            AccountId = accountId,
+            IsPrimary = false
         };
 
         await _dbContext.Users.AddAsync(user, cancellationToken);
@@ -86,17 +88,37 @@ public class AccountsController(
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAccounts()
+    public async Task<IActionResult> GetAccounts(CancellationToken cancellationToken = default)
     {
-        var accounts = await _dbContext.Accounts.ToListAsync();
-        return Ok(accounts);
+        var accounts = await _dbContext.Accounts
+            .Include(x => x.Users.Where(u => u.IsPrimary))
+            .ToListAsync(cancellationToken);
+        var response = accounts.Select(x => new AccountResponse
+        {
+            Id = x.Id,
+            Name = x.Name,
+            Email = x.Users?.FirstOrDefault()?.Email ?? string.Empty,
+            Status = SubscriptionStatus.Active,
+            CreatedDate = x.CreatedDate,
+            ActiveHandovers = x.ActiveHandovers,
+            LimitUsers = x.LimitUsers,
+            TimeZoneId = x.TimeZoneId
+        });
+        return Ok(response);
     }
 
-    private async Task<Account> CreateCompany(string companyName, CancellationToken cancellationToken = default)
+    private async Task<Account> CreateCompany(SignUpRequest account, CancellationToken cancellationToken = default)
     {
         try
         {
-            var company = new Account { Id = Guid.NewGuid(), Name = companyName };
+            var company = new Account
+            {
+                Id = Guid.NewGuid(),
+                Name = account.CompanyName,
+                Status = SubscriptionStatusType.Inactive,
+                CreatedDate = DateTime.UtcNow,
+                Email = account.Email
+            };
 
             await _dbContext.Accounts.AddAsync(company, cancellationToken);
             await _dbContext.SaveChangesAsync(cancellationToken);

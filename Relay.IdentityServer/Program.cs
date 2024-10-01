@@ -1,10 +1,8 @@
-using Microsoft.AspNetCore.Identity;
 using Relay.IdentityServer;
 using Relay.IdentityServer.Infrastructure.Data;
 using Relay.IdentityServer.Infrastructure.Data.Common;
 using Relay.IdentityServer.Infrastructure.Data.Entities;
 using Relay.IdentityServer.Infrastructure.Factories;
-using Relay.IdentityServer.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,13 +30,10 @@ builder.Services.AddIdentity<User, Role>(options =>
 })
 .AddRoles<Role>()
 .AddApiEndpoints()
-//.AddRoleManager<RoleManager<Role>>()
 .AddClaimsPrincipalFactory<ApplicationUserClaimsPrincipalFactory>()
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddDefaultTokenProviders();
 
-//builder.Services.AddScoped<RoleManager<Role>>();
-//builder.Services.AddScoped<IEmailSender<User>, EmailSender>();
 builder.Services.AddIdentityServer()
     .AddAspNetIdentity<User>()
     .AddConfigurationStore(configurationStoreOptions =>
@@ -60,6 +55,15 @@ builder.Services.AddIdentityServer()
 builder.Services.AddControllers();
 builder.Services.AddSwaggerGen();
 
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(builder => {
+        builder.AllowAnyOrigin();
+        builder.AllowAnyMethod();
+        builder.AllowAnyHeader();
+    });
+});
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -77,6 +81,7 @@ else
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
+app.UseCors();
 app.MapIdentityApi<User>();
 app.UseIdentityServer();
 app.UseAuthorization();

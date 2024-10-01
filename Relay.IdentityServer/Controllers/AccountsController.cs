@@ -8,30 +8,22 @@ namespace Relay.IdentityServer.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-public class AccountController : ControllerBase
+public class AccountsController(
+    UserManager<User> userManager,
+    SignInManager<User> signInManager,
+    ApplicationDbContext dbContext,
+    ILogger<AccountsController> logger) : ControllerBase
 {
-    private readonly SignInManager<User> _signInManager;
-    private readonly UserManager<User> _userManager;
-    private readonly ILogger<AccountController> _logger;
-    private readonly ApplicationDbContext _dbContext;
-
-    public AccountController(
-        UserManager<User> userManager,
-        SignInManager<User> signInManager,
-        ApplicationDbContext dbContext,
-        ILogger<AccountController> logger)
-    {
-        _userManager = userManager;
-        _signInManager = signInManager;
-        _logger = logger;
-        _dbContext = dbContext;
-    }
+    private readonly SignInManager<User> _signInManager = signInManager;
+    private readonly UserManager<User> _userManager = userManager;
+    private readonly ILogger<AccountsController> _logger = logger;
+    private readonly ApplicationDbContext _dbContext = dbContext;
 
     [AllowAnonymous]
     [HttpPost("sing-up")]
     public async Task<IActionResult> SingUpAsync([FromBody] SignUpRequest request, CancellationToken cancellationToken = default)
     {
-        var company = await CreateCompany(request.CompanyName);
+        var company = await CreateCompany(request.CompanyName, cancellationToken);
 
         var user = new User
         {
@@ -48,7 +40,6 @@ public class AccountController : ControllerBase
 
         if (result.Succeeded)
         {
-            var userId = await _userManager.GetUserIdAsync(user);
             await _userManager.AddToRoleAsync(user, Constants.LineManagerRoleName);
 
             return Ok(new SignUpResponse { Succeeded = true, CompanyId = company.Id, CompanyName = company.Name });
@@ -57,7 +48,7 @@ public class AccountController : ControllerBase
         return BadRequest(new SignUpResponse { Succeeded = false, Error = string.Join(',', result.Errors) });
     }
 
-    [HttpPost("accounts/{accountId}/users")]
+    [HttpPost("{accountId}/users")]
     public async Task<IActionResult> AddUserToAccount(
         [FromBody] UserCreatingRequest request,
         [FromRoute] Guid accountId,
@@ -94,7 +85,7 @@ public class AccountController : ControllerBase
         return BadRequest(new UserCreatingResponse { Succeeded = false, Error = string.Join(',', result.Errors.Select(x => x.Description)) });
     }
 
-    [HttpGet("accounts")]
+    [HttpGet]
     public async Task<IActionResult> GetAccounts()
     {
         var accounts = await _dbContext.Accounts.ToListAsync();

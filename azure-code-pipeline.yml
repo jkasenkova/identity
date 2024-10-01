@@ -63,7 +63,7 @@ stages:
         displayName: Run migration
         inputs:
           targetType: 'inline'
-          script: './ApplicationDb/efbundle --connection "$(postgres)"'
+          script: './efbundle --connection "$(postgres)"'
           showWarnings: true
 
       - bash: dotnet ef migrations bundle  --context ConfigurationDbContext --project Relay.IdentityServer --force
@@ -73,7 +73,7 @@ stages:
         displayName: Run migration
         inputs:
           targetType: 'inline'
-          script: './ConfigurationDb/efbundle --connection "$(postgres)"'
+          script: './efbundle --connection "$(postgres)"'
           showWarnings: true
 
       - bash: dotnet ef migrations bundle  --context PersistedGrantDbContext --project Relay.IdentityServer --force
@@ -83,7 +83,7 @@ stages:
         displayName: Run migration
         inputs:
           targetType: 'inline'
-          script: './PersistedGrantDb/efbundle --connection "$(postgres)"'
+          script: './efbundle --connection "$(postgres)"'
           showWarnings: true
 
       - task: DotNetCoreCLI@2

@@ -37,9 +37,6 @@ public class AccountsController(
                 IsPrimary = true
             };
 
-            await _dbContext.Users.AddAsync(user, cancellationToken);
-            await _dbContext.SaveChangesAsync(cancellationToken);
-
             var result = await _userManager.CreateAsync(user, request.Password);
 
             if (result.Succeeded)

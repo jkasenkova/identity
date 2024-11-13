@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Relay.IdentityServer.Infrastructure.Data;
 using Relay.IdentityServer.Infrastructure.Data.Entities;
 using Relay.IdentityServer.Models;
+using System.Transactions;
 
 namespace Relay.IdentityServer.Controllers;
 
@@ -23,30 +24,33 @@ public class AccountsController(
     [HttpPost("sing-up")]
     public async Task<IActionResult> SingUpAsync([FromBody] SignUpRequest request, CancellationToken cancellationToken = default)
     {
-        var company = await CreateCompany(request, cancellationToken);
-
-        var user = new User
+        using (var scope = new TransactionScope())
         {
-            Email = request.Email,
-            UserName = request.Email,
-            EmailConfirmed = true,
-            AccountId = company.Id,
-            IsPrimary = true
-        };
+            var company = await CreateCompany(request, cancellationToken);
 
-        await _dbContext.Users.AddAsync(user, cancellationToken);
-        await _dbContext.SaveChangesAsync(cancellationToken);
-        
-        var result = await _userManager.CreateAsync(user, request.Password);
+            var user = new User
+            {
+                Email = request.Email,
+                UserName = request.Email,
+                EmailConfirmed = true,
+                AccountId = company.Id,
+                IsPrimary = true
+            };
 
-        if (result.Succeeded)
-        {
-            await _userManager.AddToRoleAsync(user, Constants.LineManagerRoleName);
+            await _dbContext.Users.AddAsync(user, cancellationToken);
+            await _dbContext.SaveChangesAsync(cancellationToken);
 
-            return Ok(new SignUpResponse { Succeeded = true, CompanyId = company.Id, CompanyName = company.Name });
+            var result = await _userManager.CreateAsync(user, request.Password);
+
+            if (result.Succeeded)
+            {
+                await _userManager.AddToRoleAsync(user, Constants.LineManagerRoleName);
+
+                return Ok(new SignUpResponse { Succeeded = true, CompanyId = company.Id, CompanyName = company.Name });
+            }
+
+            return BadRequest(new SignUpResponse { Succeeded = false, Error = string.Join(',', result.Errors) });
         }
-
-        return BadRequest(new SignUpResponse { Succeeded = false, Error = string.Join(',', result.Errors) });
     }
 
     [HttpPost("{accountId}/users")]
@@ -111,13 +115,19 @@ public class AccountsController(
     {
         try
         {
+            if (_dbContext.Accounts.Any(x => x.Name == account.CompanyName))
+            {
+                throw new Exception("Company already exists.");
+            }
+
             var company = new Account
             {
                 Id = Guid.NewGuid(),
                 Name = account.CompanyName,
                 Status = SubscriptionStatusType.Inactive,
                 CreatedDate = DateTime.UtcNow,
-                Email = account.Email
+                Email = account.Email,
+                TimeZoneId = Guid.NewGuid()
             };
 
             await _dbContext.Accounts.AddAsync(company, cancellationToken);

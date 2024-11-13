@@ -1,3 +1,4 @@
+using Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure;
 using Relay.IdentityServer;
 using Relay.IdentityServer.Infrastructure.Data;
 using Relay.IdentityServer.Infrastructure.Data.Common;
@@ -20,7 +21,11 @@ builder.Services.AddDbContext<ApplicationDbContext>((serviceProvider, dbContextO
 {
     dbContextOptionsBuilder.UseNpgsql(
         builder.Configuration["AppSettings:PostgresConnection"],
-        DbExtensions.NpgsqlOptionsAction);
+        npgsqlDbContextOptionsBuilder =>
+        {
+            npgsqlDbContextOptionsBuilder.MigrationsAssembly(typeof(Program).GetTypeInfo().Assembly.GetName().Name);
+            npgsqlDbContextOptionsBuilder.MigrationsHistoryTable("_EFMigrationsHistory", Constants.IdentityDefaultSchema);
+        });
 });
 
 
@@ -40,18 +45,29 @@ builder.Services.AddIdentityServer()
     {
         configurationStoreOptions.ConfigureDbContext = dbContextOptionsBuilder => dbContextOptionsBuilder.UseNpgsql(
             builder.Configuration["AppSettings:PostgresConnection"],
-            DbExtensions.NpgsqlOptionsAction);
+            npgsqlDbContextOptionsBuilder =>
+            {
+                npgsqlDbContextOptionsBuilder.MigrationsAssembly(typeof(Program).GetTypeInfo().Assembly.GetName().Name);
+                npgsqlDbContextOptionsBuilder.MigrationsHistoryTable("_EFMigrationsHistory", Constants.IdentityServerDefaultSchema);
+            });
         configurationStoreOptions.DefaultSchema = Constants.IdentityServerDefaultSchema;
     })
     .AddOperationalStore(operationalStoreOptions =>
     {
         operationalStoreOptions.ConfigureDbContext = dbContextOptionsBuilder => dbContextOptionsBuilder.UseNpgsql(
             builder.Configuration["AppSettings:PostgresConnection"],
-            DbExtensions.NpgsqlOptionsAction);
+            npgsqlDbContextOptionsBuilder =>
+            {
+                npgsqlDbContextOptionsBuilder.MigrationsAssembly(typeof(Program).GetTypeInfo().Assembly.GetName().Name);
+                npgsqlDbContextOptionsBuilder.MigrationsHistoryTable("_EFMigrationsHistory", Constants.IdentityServerDefaultSchema);
+            });
         operationalStoreOptions.DefaultSchema = Constants.IdentityServerDefaultSchema;
     })
     .AddJwtBearerClientAuthentication();
 
+builder.Services.AddAuthentication()
+    .AddCookie(IdentityConstants.BearerScheme);
+builder.Services.AddAuthorizationBuilder();
 builder.Services.AddControllers();
 builder.Services.AddSwaggerGen();
 

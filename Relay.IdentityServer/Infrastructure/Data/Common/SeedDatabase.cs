@@ -21,7 +21,17 @@ public class SeedDatabase(
     {
         if (await _dbContext.Accounts.FindAsync(RootCompanyId) is null)
         {
-            var company = CreateCompany(Constants.iHandoverAccountName);
+            var company = new Account
+            {
+                Id = RootCompanyId,
+                Name = Constants.iHandoverAccountName,
+                Email = _configuration["IdentitySettings:AdminUserEmail"]!,
+                CreatedDate = DateTime.UtcNow,
+                LimitUsers = 100,
+                Status = SubscriptionStatusType.Active,
+                ActiveHandovers = 100,
+                TimeZoneId = Guid.NewGuid()
+            };
             await _dbContext.Accounts.AddAsync(company);
             await _dbContext.SaveChangesAsync();
         }
@@ -48,7 +58,7 @@ public class SeedDatabase(
             var adminUser = new User
             {
                 EmailConfirmed = true,
-                UserName = "admin.user",
+                UserName = _configuration["IdentitySettings:AdminUserEmail"],
                 Email = _configuration["IdentitySettings:AdminUserEmail"],
                 AccountId = account!.Id
             };
@@ -81,7 +91,7 @@ public class SeedDatabase(
             {
                 Name = _configuration["AuthSettings:ScopeName"]!,
                 DisplayName = "API",
-                UserClaims = { JwtClaimTypes.Role }
+                UserClaims = { JwtClaimTypes.Role, JwtClaimTypes.Email, JwtClaimTypes.Id, JwtClaimsTypes.AccountId }
             }.ToEntity());
 
             await _configurationDbContext.SaveChangesAsync();
@@ -100,9 +110,13 @@ public class SeedDatabase(
                     AlwaysSendClientClaims = true,
                     RefreshTokenUsage = TokenUsage.OneTimeOnly,
                     RefreshTokenExpiration = TokenExpiration.Absolute,
+                    AccessTokenLifetime = 86400,
+                    AbsoluteRefreshTokenLifetime = 86400,
                     AccessTokenType = AccessTokenType.Jwt,
                     RequireClientSecret = false,
                     UpdateAccessTokenClaimsOnRefresh = true,
+                    
+                    AllowedCorsOrigins = { _configuration["AuthSettings:AllowedCorsOrigin"]! }
                 }.ToEntity());
 
             await _configurationDbContext.SaveChangesAsync();
@@ -118,6 +132,4 @@ public class SeedDatabase(
             await _configurationDbContext.SaveChangesAsync();
         }
     }
-
-    private Account CreateCompany(string name) =>  new Account { Id = RootCompanyId, Name = name };
 }

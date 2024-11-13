@@ -10,3 +10,8 @@ public static class Constants
     public static string IdentityDefaultSchema = "Identity";
     public static string IdentityServerDefaultSchema = "IdentityServer";
 }
+
+public static class JwtClaimsTypes
+{
+    public const string AccountId = "AccountId";
+}

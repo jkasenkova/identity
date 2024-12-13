@@ -14,4 +14,10 @@ public static class Constants
 public static class JwtClaimsTypes
 {
     public const string AccountId = "AccountId";
+
+    public const string TimeZone = "TimeZone";
+
+    public const string FirstName = "FirstName";
+
+    public const string LastName = "LastName";
 }

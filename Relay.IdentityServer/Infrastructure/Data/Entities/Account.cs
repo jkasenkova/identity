@@ -16,7 +16,7 @@ public class Account
 
     public int ActiveHandovers { get; set; }
 
-    public Guid TimeZoneId { get; set; }
+    public string? TimeZone { get; init; } = string.Empty;
 
     public virtual ICollection<User> Users { get; set; } = [];
 }

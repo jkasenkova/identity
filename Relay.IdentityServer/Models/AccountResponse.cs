@@ -16,5 +16,5 @@ public record AccountResponse
 
     public int ActiveHandovers { get; set; }
 
-    public Guid TimeZoneId { get; set; }
+    public string? TimeZone { get; set; }
 }

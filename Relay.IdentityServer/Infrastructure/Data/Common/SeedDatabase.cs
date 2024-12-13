@@ -30,7 +30,7 @@ public class SeedDatabase(
                 LimitUsers = 100,
                 Status = SubscriptionStatusType.Active,
                 ActiveHandovers = 100,
-                TimeZoneId = Guid.NewGuid()
+                TimeZone = "UTC"
             };
             await _dbContext.Accounts.AddAsync(company);
             await _dbContext.SaveChangesAsync();
@@ -57,13 +57,13 @@ public class SeedDatabase(
 
             var adminUser = new User
             {
+                FirstName = "Admin",
+                LastName = "iHandover",
                 EmailConfirmed = true,
                 UserName = _configuration["IdentitySettings:AdminUserEmail"],
                 Email = _configuration["IdentitySettings:AdminUserEmail"],
                 AccountId = account!.Id
             };
-
-            await _dbContext.SaveChangesAsync();
 
             var identity = await _userManager.CreateAsync(adminUser, _configuration["IdentitySettings:AdminUserPassword"]!);
             if (identity.Succeeded)
@@ -91,7 +91,16 @@ public class SeedDatabase(
             {
                 Name = _configuration["AuthSettings:ScopeName"]!,
                 DisplayName = "API",
-                UserClaims = { JwtClaimTypes.Role, JwtClaimTypes.Email, JwtClaimTypes.Id, JwtClaimsTypes.AccountId }
+                UserClaims =
+                {
+                    JwtClaimTypes.Role,
+                    JwtClaimTypes.Email,
+                    JwtClaimTypes.Id,
+                    JwtClaimsTypes.AccountId,
+                    JwtClaimsTypes.TimeZone,
+                    JwtClaimsTypes.FirstName,
+                    JwtClaimsTypes.LastName
+                }
             }.ToEntity());
 
             await _configurationDbContext.SaveChangesAsync();
@@ -108,14 +117,13 @@ public class SeedDatabase(
                     AllowedGrantTypes = GrantTypes.ResourceOwnerPasswordAndClientCredentials,
                     AllowedScopes = new List<string> { _configuration["AuthSettings:ScopeName"]! },
                     AlwaysSendClientClaims = true,
-                    RefreshTokenUsage = TokenUsage.OneTimeOnly,
+                    RefreshTokenUsage = TokenUsage.ReUse,
                     RefreshTokenExpiration = TokenExpiration.Absolute,
                     AccessTokenLifetime = 86400,
                     AbsoluteRefreshTokenLifetime = 86400,
                     AccessTokenType = AccessTokenType.Jwt,
                     RequireClientSecret = false,
                     UpdateAccessTokenClaimsOnRefresh = true,
-                    
                     AllowedCorsOrigins = { _configuration["AuthSettings:AllowedCorsOrigin"]! }
                 }.ToEntity());
 

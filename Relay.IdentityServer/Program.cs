@@ -1,3 +1,5 @@
+using Duende.IdentityServer.Services;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure;
 using Relay.IdentityServer;
 using Relay.IdentityServer.Infrastructure.Data;
@@ -39,7 +41,10 @@ builder.Services.AddIdentity<User, Role>(options =>
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddDefaultTokenProviders();
 
+builder.Services.TryAddTransient<IRefreshTokenService, DefaultRefreshTokenService>();
+
 builder.Services.AddIdentityServer()
+    .AddDeveloperSigningCredential()
     .AddAspNetIdentity<User>()
     .AddConfigurationStore(configurationStoreOptions =>
     {

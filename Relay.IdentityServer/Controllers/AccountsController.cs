@@ -3,51 +3,49 @@ using Microsoft.AspNetCore.Mvc;
 using Relay.IdentityServer.Infrastructure.Data;
 using Relay.IdentityServer.Infrastructure.Data.Entities;
 using Relay.IdentityServer.Models;
-using System.Transactions;
 
 namespace Relay.IdentityServer.Controllers;
 
-[Route("api/[controller]")]
+[Route("api/accounts")]
 [ApiController]
 public class AccountsController(
     UserManager<User> userManager,
-    SignInManager<User> signInManager,
+    RoleManager<Role> roleManager,
     ApplicationDbContext dbContext,
     ILogger<AccountsController> logger) : ControllerBase
 {
-    private readonly SignInManager<User> _signInManager = signInManager;
-    private readonly UserManager<User> _userManager = userManager;
-    private readonly ILogger<AccountsController> _logger = logger;
-    private readonly ApplicationDbContext _dbContext = dbContext;
-
     [AllowAnonymous]
     [HttpPost("sing-up")]
     public async Task<IActionResult> SingUpAsync([FromBody] SignUpRequest request, CancellationToken cancellationToken = default)
     {
-        using (var scope = new TransactionScope())
+        var company = await CreateCompany(request, cancellationToken);
+
+        var user = new User
         {
-            var company = await CreateCompany(request, cancellationToken);
+            FirstName = request.FirstName,
+            LastName = request.LastName,
+            Email = request.Email,
+            UserName = request.Email,
+            EmailConfirmed = true,
+            AccountId = company.Id,
+            IsPrimary = true
+        };
 
-            var user = new User
+        var identityResult = await userManager.CreateAsync(user, request.Password);
+
+        if (identityResult.Succeeded)
+        {
+            var roleResult = await userManager.AddToRoleAsync(user, Constants.AdministratorRoleName);
+
+            if (!roleResult.Succeeded)
             {
-                Email = request.Email,
-                UserName = request.Email,
-                EmailConfirmed = true,
-                AccountId = company.Id,
-                IsPrimary = true
-            };
-
-            var result = await _userManager.CreateAsync(user, request.Password);
-
-            if (result.Succeeded)
-            {
-                await _userManager.AddToRoleAsync(user, Constants.LineManagerRoleName);
-
-                return Ok(new SignUpResponse { Succeeded = true, CompanyId = company.Id, CompanyName = company.Name });
+                return BadRequest(new SignInResponse { Succeeded = false, Error = string.Join(',', roleResult.Errors) });
             }
 
-            return BadRequest(new SignUpResponse { Succeeded = false, Error = string.Join(',', result.Errors) });
+            return Ok(new SignUpResponse { Succeeded = true, CompanyId = company.Id, CompanyName = company.Name });
         }
+
+        return BadRequest(new SignUpResponse { Succeeded = false, Error = string.Join(',', identityResult.Errors) });
     }
 
     [HttpPost("{accountId}/users")]
@@ -56,7 +54,7 @@ public class AccountsController(
         [FromRoute] Guid accountId,
         CancellationToken cancellationToken = default)
     {
-        var company = _dbContext.Accounts.Find(accountId);
+        var company = await dbContext.Accounts.FindAsync(accountId, cancellationToken);
 
         if (company is null)
         {
@@ -72,28 +70,33 @@ public class AccountsController(
             IsPrimary = false
         };
 
-        await _dbContext.Users.AddAsync(user, cancellationToken);
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        var identityResult = await userManager.CreateAsync(user, request.Password);
 
-        var result = await _userManager.CreateAsync(user, request.Password);
-
-        if (result.Succeeded)
+        if (identityResult.Succeeded)
         {
-            var userId = await _userManager.GetUserIdAsync(user);
-            await _userManager.AddToRoleAsync(user, Constants.LineManagerRoleName);
+            var roleExists = await roleManager.RoleExistsAsync(request.Role);
+
+            if (!roleExists)
+            {
+                return BadRequest(new UserCreatingResponse { Succeeded = false, Error = $"Role with name: {request.Role} doesn't exist!" });
+            }
+
+            var userId = await userManager.GetUserIdAsync(user);
+            await userManager.AddToRoleAsync(user, request.Role);
 
             return Ok(new UserCreatingResponse { Succeeded = true, UserId = userId });
         }
 
-        return BadRequest(new UserCreatingResponse { Succeeded = false, Error = string.Join(',', result.Errors.Select(x => x.Description)) });
+        return BadRequest(new UserCreatingResponse { Succeeded = false, Error = string.Join(',', identityResult.Errors.Select(x => x.Description)) });
     }
 
     [HttpGet]
     public async Task<IActionResult> GetAccounts(CancellationToken cancellationToken = default)
     {
-        var accounts = await _dbContext.Accounts
+        var accounts = await dbContext.Accounts
             .Include(x => x.Users.Where(u => u.IsPrimary))
             .ToListAsync(cancellationToken);
+
         var response = accounts.Select(x => new AccountResponse
         {
             Id = x.Id,
@@ -103,8 +106,9 @@ public class AccountsController(
             CreatedDate = x.CreatedDate,
             ActiveHandovers = x.ActiveHandovers,
             LimitUsers = x.LimitUsers,
-            TimeZoneId = x.TimeZoneId
+            TimeZone = x.TimeZone
         });
+
         return Ok(response);
     }
 
@@ -112,7 +116,7 @@ public class AccountsController(
     {
         try
         {
-            if (_dbContext.Accounts.Any(x => x.Name == account.CompanyName))
+            if (dbContext.Accounts.Any(x => x.Name == account.CompanyName))
             {
                 throw new Exception("Company already exists.");
             }
@@ -124,16 +128,16 @@ public class AccountsController(
                 Status = SubscriptionStatusType.Inactive,
                 CreatedDate = DateTime.UtcNow,
                 Email = account.Email,
-                TimeZoneId = Guid.NewGuid()
+                TimeZone = account.Timezone
             };
 
-            await _dbContext.Accounts.AddAsync(company, cancellationToken);
-            await _dbContext.SaveChangesAsync(cancellationToken);
+            await dbContext.Accounts.AddAsync(company, cancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
             return company;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error creating company");
+            logger.LogError(ex, "Error creating company");
             throw;
         }
     }

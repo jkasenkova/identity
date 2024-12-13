@@ -8,4 +8,5 @@ public record SignUpRequest
     public string CompanyName { get; set; } = null!;
     public string Password { get; set; } = null!;
     public string PasswordConfirm { get; set; } = null!;
+    public string Timezone { get; set; } = null!;
 }

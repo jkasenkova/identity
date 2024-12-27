@@ -1,6 +1,5 @@
 using Duende.IdentityServer.Services;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure;
 using Relay.IdentityServer;
 using Relay.IdentityServer.Infrastructure.Data;
 using Relay.IdentityServer.Infrastructure.Data.Common;

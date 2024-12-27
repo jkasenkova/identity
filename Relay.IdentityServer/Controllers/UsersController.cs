@@ -20,7 +20,7 @@ public class UsersController(
             var storedUser = await userManager.GetUserAsync(this.User);
             var roles = await userManager.GetRolesAsync(storedUser!);
 
-            return Ok(new UserResponse(storedUser!.Id, storedUser.NormalizedUserName, roles.FirstOrDefault()));
+            return Ok(new UserResponse(storedUser!.Id, storedUser.FirstName, storedUser.LastName, [.. roles]));
         }
 
         return BadRequest();

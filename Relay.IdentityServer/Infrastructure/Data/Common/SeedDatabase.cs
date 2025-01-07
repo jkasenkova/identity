@@ -36,19 +36,24 @@ public class SeedDatabase(
             await _dbContext.SaveChangesAsync();
         }
 
+        if (!await _roleManager.RoleExistsAsync(Constants.RootAdminRoleName))
+        {
+            await _roleManager.CreateAsync(new Role() { Name = Constants.RootAdminRoleName, Id = Constants.RootAdminRoleId });
+        }
+
         if (!await _roleManager.RoleExistsAsync(Constants.AdministratorRoleName))
         {
-            await _roleManager.CreateAsync(new Role() { Name = Constants.AdministratorRoleName });
+            await _roleManager.CreateAsync(new Role() { Name = Constants.AdministratorRoleName, Id = Constants.AdministratorRoleId });
         }
 
         if (!await _roleManager.RoleExistsAsync(Constants.LineManagerRoleName))
         {
-            await _roleManager.CreateAsync(new Role() { Name = Constants.LineManagerRoleName });
+            await _roleManager.CreateAsync(new Role() { Name = Constants.LineManagerRoleName, Id = Constants.LineManagerRoleId });
         }
 
         if (!await _roleManager.RoleExistsAsync(Constants.UserRoleName))
         {
-            await _roleManager.CreateAsync(new Role() { Name = Constants.UserRoleName });
+            await _roleManager.CreateAsync(new Role() { Name = Constants.UserRoleName, Id = Constants.UserRoleId });
         }
 
         if (await _userManager.FindByEmailAsync(_configuration["IdentitySettings:AdminUserEmail"]!) is null)
@@ -68,7 +73,7 @@ public class SeedDatabase(
             var identity = await _userManager.CreateAsync(adminUser, _configuration["IdentitySettings:AdminUserPassword"]!);
             if (identity.Succeeded)
             {
-                await _userManager.AddToRoleAsync(adminUser, Constants.AdministratorRoleName);
+                await _userManager.AddToRoleAsync(adminUser, Constants.RootAdminRoleName);
             }
         }
 

@@ -39,10 +39,19 @@ public class AccountsController(
 
             if (!roleResult.Succeeded)
             {
-                return BadRequest(new SignInResponse { Succeeded = false, Error = string.Join(',', roleResult.Errors) });
+                return BadRequest(new SignUpResponse { Succeeded = false, Error = string.Join(',', roleResult.Errors) });
             }
 
-            return Ok(new SignUpResponse { Succeeded = true, CompanyId = company.Id, CompanyName = company.Name });
+            var storedUser = await userManager.FindByEmailAsync(request.Email);
+
+            return Ok(new SignUpResponse
+            {
+                Succeeded = true,
+                CompanyId = company.Id,
+                CompanyName = company.Name,
+                UserId = storedUser!.Id,
+                RoleId = Constants.AdministratorRoleId
+            });
         }
 
         return BadRequest(new SignUpResponse { Succeeded = false, Error = string.Join(',', identityResult.Errors) });

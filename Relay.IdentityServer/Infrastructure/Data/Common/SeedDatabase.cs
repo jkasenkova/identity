@@ -62,6 +62,7 @@ public class SeedDatabase(
 
             var adminUser = new User
             {
+                Id = Constants.RootAdminId,
                 FirstName = "Admin",
                 LastName = "iHandover",
                 EmailConfirmed = true,

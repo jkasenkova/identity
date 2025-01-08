@@ -5,6 +5,7 @@ public static class Constants
     public const string iHandoverAccountName = "iHandover";
     public const string AdministratorRoleName = "Administrator";
     public static readonly Guid AdministratorRoleId = Guid.Parse("76dfdc04-e8ac-4ad3-9ddf-fca6266409e6");
+    public static readonly Guid RootAdminId = Guid.Parse("4f8ba3b7-0f87-4015-af71-99a5040b2fd7");
     public const string RootAdminRoleName = "RootAdmin";
     public static readonly Guid RootAdminRoleId = Guid.Parse("24244bf6-2fce-4e67-9e72-7a6466b13238");
     public const string LineManagerRoleName = "LineManager";

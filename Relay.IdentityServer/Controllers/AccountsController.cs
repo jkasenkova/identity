@@ -10,7 +10,6 @@ namespace Relay.IdentityServer.Controllers;
 [ApiController]
 public class AccountsController(
     UserManager<User> userManager,
-    RoleManager<Role> roleManager,
     ApplicationDbContext dbContext,
     ILogger<AccountsController> logger) : ControllerBase
 {
@@ -55,48 +54,6 @@ public class AccountsController(
         }
 
         return BadRequest(new SignUpResponse { Succeeded = false, Error = string.Join(',', identityResult.Errors) });
-    }
-
-    [HttpPost("{accountId}/users")]
-    public async Task<IActionResult> AddUserToAccount(
-        [FromBody] UserCreatingRequest request,
-        [FromRoute] Guid accountId,
-        CancellationToken cancellationToken = default)
-    {
-        var company = await dbContext.Accounts.FindAsync(accountId, cancellationToken);
-
-        if (company is null)
-        {
-            return BadRequest(new UserCreatingResponse { Succeeded = false, Error = "Company not found" });
-        }
-
-        var user = new User
-        {
-            Email = request.Email,
-            UserName = request.Email,
-            EmailConfirmed = true,
-            AccountId = accountId,
-            IsPrimary = false
-        };
-
-        var identityResult = await userManager.CreateAsync(user, request.Password);
-
-        if (identityResult.Succeeded)
-        {
-            var roleExists = await roleManager.RoleExistsAsync(request.Role);
-
-            if (!roleExists)
-            {
-                return BadRequest(new UserCreatingResponse { Succeeded = false, Error = $"Role with name: {request.Role} doesn't exist!" });
-            }
-
-            var userId = await userManager.GetUserIdAsync(user);
-            await userManager.AddToRoleAsync(user, request.Role);
-
-            return Ok(new UserCreatingResponse { Succeeded = true, UserId = userId });
-        }
-
-        return BadRequest(new UserCreatingResponse { Succeeded = false, Error = string.Join(',', identityResult.Errors.Select(x => x.Description)) });
     }
 
     [HttpGet]
